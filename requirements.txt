@@ -1,29 +1,9 @@
-# ── AI Resume Analyzer – Ultra-Slim Vercel Build ──────────────────────────────
-# Target: < 100 MB unzipped (Vercel limit: 250 MB)
-#
-# REMOVED (too large):
-#   scikit-learn  ~90 MB  → replaced with pure-Python TF-IDF
-#   numpy         ~60 MB  → not needed anymore
-#   pdfplumber    ~55 MB  → pulls in Pillow; replaced with pypdf
-#   psycopg2-binary ~15 MB → replaced with pg8000 (pure Python)
-#   reportlab     ~15 MB  → replaced with lightweight fpdf2
-#
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.3
 SQLAlchemy==2.0.31
-
-# Pure-Python PostgreSQL driver (~1 MB vs psycopg2-binary ~15 MB)
 pg8000==1.31.2
-
-# PDF parsing – pypdf is lightweight (~3 MB, no Pillow dependency)
 pypdf==4.3.1
-
-# DOCX parsing – python-docx needs lxml but it's unavoidable (~5 MB)
 python-docx==1.1.2
-
-# PDF report – fpdf2 is ~2 MB vs reportlab ~15 MB
 fpdf2==2.8.1
-
-# Environment variables
 python-dotenv==1.0.1
