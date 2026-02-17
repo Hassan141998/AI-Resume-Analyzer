@@ -3,6 +3,10 @@
     {
       "src": "app.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -16,3 +20,25 @@
     }
   ]
 }
+```
+
+4. **Commit changes**
+
+### Step 2: Wait & Refresh
+
+1. Wait 20 seconds for Vercel to redeploy
+2. **Hard refresh** your browser: `Ctrl+Shift+R` (Windows) or `Cmd+Shift+R` (Mac)
+3. The dark theme, animations, and styling should appear ✅
+
+---
+
+## 🔍 If Still Not Working
+
+**Check if static files exist in your GitHub repo:**
+
+Your repo should have:
+```
+├── static/
+│   ├── css/style.css
+│   ├── js/particles.js
+│   └── images/favicon.svg
