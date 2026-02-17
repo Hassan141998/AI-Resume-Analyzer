@@ -1,12 +1,14 @@
 """
-AI Resume Analyzer - Main Flask Application
+AI Resume Analyzer - Main Flask Application  
 Built by Hassan Ahmed
+FIXED: Works on Vercel serverless (read-only filesystem)
 """
 
 import os
 import json
 import uuid
 import logging
+import tempfile
 from datetime import datetime
 from flask import (
     Flask, render_template, request, redirect,
@@ -27,43 +29,43 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 
 # ── Database ──────────────────────────────────────────────────────────────────
-BASE_DIR     = os.path.abspath(os.path.dirname(__file__))
-INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
-os.makedirs(INSTANCE_DIR, exist_ok=True)
-os.makedirs(os.path.join(BASE_DIR, "uploads"), exist_ok=True)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-_default_db  = "sqlite:///" + os.path.join(INSTANCE_DIR, "resume_analyzer.db")
+# CRITICAL FIX: Don't create folders on read-only filesystem
+# On Vercel, only /tmp is writable
+UPLOAD_FOLDER = "/tmp" if os.path.exists("/tmp") else tempfile.gettempdir()
+
+_default_db = "sqlite:////" + os.path.join("/tmp", "resume_analyzer.db")
 DATABASE_URL = os.environ.get("DATABASE_URL", _default_db)
 
-# Fix Heroku/Neon "postgres://" → "postgresql+pg8000://"
-# pg8000 is the pure-Python Postgres driver (no binary, tiny size)
+# Fix Heroku/Neon postgres:// → postgresql://
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "+pg8000" not in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# pg8000 doesn't support sslmode in the URL; strip it and use connect_args
-ssl_required = "sslmode=require" in DATABASE_URL
-if ssl_required:
-    DATABASE_URL = DATABASE_URL.split("?")[0]
-
+# For pg8000 (pure-Python driver), configure SSL properly
 engine_options = {"pool_pre_ping": True, "pool_recycle": 300}
-if ssl_required:
-    import ssl as _ssl
-    _ssl_ctx = _ssl.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode    = _ssl.CERT_NONE
-    engine_options["connect_args"] = {"ssl_context": _ssl_ctx}
 
-app.config["SQLALCHEMY_DATABASE_URI"]    = DATABASE_URL
+if "postgresql://" in DATABASE_URL:
+    # Use pg8000 explicitly
+    if "postgresql+pg8000://" not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+    
+    # Strip sslmode from URL (pg8000 handles it differently)
+    if "?" in DATABASE_URL:
+        base_url, params = DATABASE_URL.split("?", 1)
+        params_list = [p for p in params.split("&") if not p.startswith("sslmode")]
+        DATABASE_URL = base_url + ("?" + "&".join(params_list) if params_list else "")
+    
+    # pg8000 SSL config
+    engine_options["connect_args"] = {"ssl_context": True}
+
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"]  = engine_options
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_options
 
-# ── Upload ────────────────────────────────────────────────────────────────────
-UPLOAD_FOLDER      = os.path.join(BASE_DIR, "uploads")
+# ── Upload Configuration ──────────────────────────────────────────────────────
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc"}
-
-app.config["UPLOAD_FOLDER"]    = UPLOAD_FOLDER
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
 db = SQLAlchemy(app)
@@ -78,42 +80,42 @@ app.jinja_env.filters["enumerate"] = enumerate
 class ResumeAnalysis(db.Model):
     __tablename__ = "resume_analysis"
 
-    id              = db.Column(db.Integer, primary_key=True)
-    uid             = db.Column(db.String(36), unique=True, nullable=False,
-                                default=lambda: str(uuid.uuid4()))
-    filename        = db.Column(db.String(255), nullable=False)
-    job_title       = db.Column(db.String(255), nullable=True)
+    id = db.Column(db.Integer, primary_key=True)
+    uid = db.Column(db.String(36), unique=True, nullable=False,
+                    default=lambda: str(uuid.uuid4()))
+    filename = db.Column(db.String(255), nullable=False)
+    job_title = db.Column(db.String(255), nullable=True)
     job_description = db.Column(db.Text, nullable=False)
-    resume_text     = db.Column(db.Text, nullable=True)
-    score           = db.Column(db.Integer, nullable=False, default=0)
-    keyword_score   = db.Column(db.Integer, nullable=True)
-    skills_score    = db.Column(db.Integer, nullable=True)
-    format_score    = db.Column(db.Integer, nullable=True)
+    resume_text = db.Column(db.Text, nullable=True)
+    score = db.Column(db.Integer, nullable=False, default=0)
+    keyword_score = db.Column(db.Integer, nullable=True)
+    skills_score = db.Column(db.Integer, nullable=True)
+    format_score = db.Column(db.Integer, nullable=True)
     matched_keywords = db.Column(db.Text, nullable=True)
     missing_keywords = db.Column(db.Text, nullable=True)
-    matched_skills   = db.Column(db.Text, nullable=True)
-    missing_skills   = db.Column(db.Text, nullable=True)
-    suggestions      = db.Column(db.Text, nullable=True)
-    ats_issues       = db.Column(db.Text, nullable=True)
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    matched_skills = db.Column(db.Text, nullable=True)
+    missing_skills = db.Column(db.Text, nullable=True)
+    suggestions = db.Column(db.Text, nullable=True)
+    ats_issues = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
-            "id":               self.id,
-            "uid":              self.uid,
-            "filename":         self.filename,
-            "job_title":        self.job_title,
-            "score":            self.score,
-            "keyword_score":    self.keyword_score,
-            "skills_score":     self.skills_score,
-            "format_score":     self.format_score,
+            "id": self.id,
+            "uid": self.uid,
+            "filename": self.filename,
+            "job_title": self.job_title,
+            "score": self.score,
+            "keyword_score": self.keyword_score,
+            "skills_score": self.skills_score,
+            "format_score": self.format_score,
             "matched_keywords": json.loads(self.matched_keywords or "[]"),
             "missing_keywords": json.loads(self.missing_keywords or "[]"),
-            "matched_skills":   json.loads(self.matched_skills   or "[]"),
-            "missing_skills":   json.loads(self.missing_skills   or "[]"),
-            "suggestions":      json.loads(self.suggestions      or "[]"),
-            "ats_issues":       json.loads(self.ats_issues       or "[]"),
-            "created_at":       self.created_at.strftime("%Y-%m-%d %H:%M"),
+            "matched_skills": json.loads(self.matched_skills or "[]"),
+            "missing_skills": json.loads(self.missing_skills or "[]"),
+            "suggestions": json.loads(self.suggestions or "[]"),
+            "ats_issues": json.loads(self.ats_issues or "[]"),
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M"),
         }
 
 
@@ -133,9 +135,9 @@ def upload():
         flash("No file part in request.", "error")
         return redirect(url_for("index"))
 
-    file            = request.files["resume"]
+    file = request.files["resume"]
     job_description = request.form.get("job_description", "").strip()
-    job_title       = request.form.get("job_title", "").strip()
+    job_title = request.form.get("job_title", "").strip()
 
     if file.filename == "":
         flash("Please select a resume file.", "error")
@@ -148,41 +150,47 @@ def upload():
         return redirect(url_for("index"))
 
     try:
-        filename  = secure_filename(file.filename)
+        filename = secure_filename(file.filename)
         unique_fn = f"{uuid.uuid4().hex}_{filename}"
-        filepath  = os.path.join(app.config["UPLOAD_FOLDER"], unique_fn)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_fn)
         file.save(filepath)
 
         resume_text = extract_text_from_file(filepath)
         if not resume_text or len(resume_text.strip()) < 50:
             flash("Could not extract readable text. Please check the file.", "error")
-            os.remove(filepath)
+            try:
+                os.remove(filepath)
+            except:
+                pass
             return redirect(url_for("index"))
 
         result = analyze_resume(resume_text, job_description)
 
         analysis = ResumeAnalysis(
-            filename         = filename,
-            job_title        = job_title,
-            job_description  = job_description,
-            resume_text      = resume_text[:5000],
-            score            = result["score"],
-            keyword_score    = result["keyword_score"],
-            skills_score     = result["skills_score"],
-            format_score     = result["format_score"],
-            matched_keywords = json.dumps(result["matched_keywords"]),
-            missing_keywords = json.dumps(result["missing_keywords"]),
-            matched_skills   = json.dumps(result["matched_skills"]),
-            missing_skills   = json.dumps(result["missing_skills"]),
-            suggestions      = json.dumps(result["suggestions"]),
-            ats_issues       = json.dumps(result["ats_issues"]),
+            filename=filename,
+            job_title=job_title,
+            job_description=job_description,
+            resume_text=resume_text[:5000],
+            score=result["score"],
+            keyword_score=result["keyword_score"],
+            skills_score=result["skills_score"],
+            format_score=result["format_score"],
+            matched_keywords=json.dumps(result["matched_keywords"]),
+            missing_keywords=json.dumps(result["missing_keywords"]),
+            matched_skills=json.dumps(result["matched_skills"]),
+            missing_skills=json.dumps(result["missing_skills"]),
+            suggestions=json.dumps(result["suggestions"]),
+            ats_issues=json.dumps(result["ats_issues"]),
         )
         db.session.add(analysis)
         db.session.commit()
+        
+        # Clean up temp file
         try:
             os.remove(filepath)
-        except Exception:
+        except:
             pass
+            
         return redirect(url_for("result", uid=analysis.uid))
 
     except Exception as exc:
@@ -213,12 +221,12 @@ def download_report(uid):
 
 @app.route("/dashboard")
 def dashboard():
-    analyses   = ResumeAnalysis.query.order_by(ResumeAnalysis.created_at.desc()).all()
-    total      = len(analyses)
-    avg_score  = int(sum(a.score for a in analyses) / total) if total else 0
+    analyses = ResumeAnalysis.query.order_by(ResumeAnalysis.created_at.desc()).all()
+    total = len(analyses)
+    avg_score = int(sum(a.score for a in analyses) / total) if total else 0
     high_score = len([a for a in analyses if a.score >= 80])
-    mid_score  = len([a for a in analyses if 50 <= a.score < 80])
-    low_score  = len([a for a in analyses if a.score < 50])
+    mid_score = len([a for a in analyses if 50 <= a.score < 80])
+    low_score = len([a for a in analyses if a.score < 50])
     recent_scores = [
         {"filename": a.filename[:20], "score": a.score,
          "date": a.created_at.strftime("%b %d")}
@@ -260,11 +268,15 @@ def too_large(e):
 
 # ── Init DB ───────────────────────────────────────────────────────────────────
 with app.app_context():
-    db.create_all()
-    logger.info("Database ready.")
+    try:
+        db.create_all()
+        logger.info("Database ready.")
+    except Exception as exc:
+        logger.error("Database init failed: %s", exc)
+
 
 if __name__ == "__main__":
-    PORT  = int(os.environ.get("PORT", 5000))
+    PORT = int(os.environ.get("PORT", 5000))
     DEBUG = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 
     print("\n")
@@ -275,11 +287,10 @@ if __name__ == "__main__":
     print()
     print(f"  \033[92m✔  Server running!\033[0m")
     print(f"  \033[93m➜  Local:     \033[4mhttp://127.0.0.1:{PORT}\033[0m")
-    print(f"  \033[93m➜  Network:   \033[4mhttp://localhost:{PORT}\033[0m")
     print(f"  \033[93m➜  Dashboard: \033[4mhttp://127.0.0.1:{PORT}/dashboard\033[0m")
     print()
-    print(f"  \033[90mDebug : {'ON' if DEBUG else 'OFF'}\033[0m")
-    print(f"  \033[90mDB    : {DATABASE_URL.split('?')[0]}\033[0m")
+    print(f"  \033[90mDebug: {'ON' if DEBUG else 'OFF'}\033[0m")
+    print(f"  \033[90mDB: {DATABASE_URL.split('?')[0][:60]}...\033[0m")
     print("  \033[90mPress Ctrl+C to stop.\033[0m\n")
 
     app.run(debug=DEBUG, port=PORT, host="0.0.0.0")
