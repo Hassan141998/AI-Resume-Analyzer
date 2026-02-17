@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – AI Resume Analyzer{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<section class="dashboard-section">
+
+  <!-- Header -->
+  <div class="dashboard-header">
+    <div>
+      <h1 class="dashboard-title"><i class="fas fa-chart-line"></i> Analytics Dashboard</h1>
+      <p class="dashboard-sub">Overview of all resume analyses</p>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn-primary">
+      <i class="fas fa-plus"></i> New Analysis
+    </a>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid">
+    <div class="stat-card glass-card">
+      <div class="stat-icon icon-aqua"><i class="fas fa-file-alt"></i></div>
+      <div class="stat-content">
+        <span class="stat-value" data-target="{{ total }}">0</span>
+        <span class="stat-label">Total Analyses</span>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon icon-pink"><i class="fas fa-star"></i></div>
+      <div class="stat-content">
+        <span class="stat-value" data-target="{{ avg_score }}">0</span>
+        <span class="stat-label">Average Score</span>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon icon-aqua"><i class="fas fa-trophy"></i></div>
+      <div class="stat-content">
+        <span class="stat-value" data-target="{{ high_score }}">0</span>
+        <span class="stat-label">High Scores ≥80</span>
+      </div>
+    </div>
+    <div class="stat-card glass-card">
+      <div class="stat-icon icon-pink"><i class="fas fa-exclamation-circle"></i></div>
+      <div class="stat-content">
+        <span class="stat-value" data-target="{{ low_score }}">0</span>
+        <span class="stat-label">Low Scores &lt;50</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-row">
+    <!-- Distribution Pie -->
+    <div class="chart-card glass-card">
+      <h3><i class="fas fa-chart-pie"></i> Score Distribution</h3>
+      <div class="chart-wrap">
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
+    <!-- Recent Scores Bar -->
+    <div class="chart-card chart-wide glass-card">
+      <h3><i class="fas fa-chart-bar"></i> Recent Scores</h3>
+      <div class="chart-wrap">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card glass-card">
+    <div class="table-header">
+      <h3><i class="fas fa-list"></i> All Analyses</h3>
+      <input type="text" id="tableSearch" placeholder="Search filename…" class="input-field search-field"/>
+    </div>
+    {% if analyses %}
+    <div class="table-responsive">
+      <table class="data-table" id="analysisTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Filename</th>
+            <th>Job Title</th>
+            <th>Score</th>
+            <th>Keywords</th>
+            <th>Skills</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in analyses %}
+          <tr data-id="{{ a.id }}">
+            <td class="muted-cell">{{ loop.index }}</td>
+            <td class="filename-cell">
+              <i class="fas fa-file-alt text-aqua"></i>
+              <a href="{{ url_for('result', uid=a.uid) }}">{{ a.filename }}</a>
+            </td>
+            <td>{{ a.job_title or '—' }}</td>
+            <td>
+              <span class="score-badge
+                {% if a.score >= 80 %}badge-green
+                {% elif a.score >= 50 %}badge-yellow
+                {% else %}badge-red{% endif %}">
+                {{ a.score }}%
+              </span>
+            </td>
+            <td class="muted-cell">{{ a.keyword_score or '—' }}%</td>
+            <td class="muted-cell">{{ a.skills_score or '—' }}%</td>
+            <td class="muted-cell">{{ a.created_at.strftime('%b %d, %Y') }}</td>
+            <td>
+              <div class="action-btns">
+                <a href="{{ url_for('result', uid=a.uid) }}" class="btn-icon" title="View">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <button class="btn-icon btn-danger delete-btn" data-id="{{ a.id }}" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-table">
+      <i class="fas fa-inbox fa-3x text-aqua"></i>
+      <h3>No analyses yet</h3>
+      <p>Start by uploading a resume on the home page.</p>
+      <a href="{{ url_for('index') }}" class="btn-primary">Upload Resume</a>
+    </div>
+    {% endif %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const RECENT_SCORES = {{ recent_scores | safe }};
+  const SCORE_DIST = {
+    high: {{ high_score }},
+    mid:  {{ mid_score }},
+    low:  {{ low_score }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

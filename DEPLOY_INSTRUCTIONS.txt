@@ -1,0 +1,59 @@
+╔══════════════════════════════════════════════════════════════════╗
+║           AI RESUME ANALYZER – GITHUB UPLOAD GUIDE             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+THE PROBLEM: Vercel keeps deploying the old commit (9e11ace).
+THE FIX:     Delete your GitHub repo and re-upload ALL these files.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1: Delete the old GitHub repository
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to: github.com/Hassan141998/-AI-Resume-Analyzer
+2. Click "Settings" tab (top right of the repo)
+3. Scroll to the very bottom → "Danger Zone"
+4. Click "Delete this repository"
+5. Type the repo name to confirm → Delete
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2: Create a NEW GitHub repository
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to: github.com/new
+2. Name it: ai-resume-analyzer
+3. Set to Public
+4. Do NOT check "Add README" or any other option
+5. Click "Create repository"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3: Upload ALL files from this ZIP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Extract this ZIP on your computer
+2. On your new empty GitHub repo page, click "uploading an existing file"
+3. DRAG the entire extracted folder contents into the upload area
+   ⚠️  Upload the FILES INSIDE the folder, not the folder itself
+   ⚠️  Make sure you see ALL these files before committing:
+       app.py
+       requirements.txt
+       vercel.json
+       .vercelignore
+       utils/analyzer.py
+       utils/parser.py
+       utils/report.py
+       (+ templates/ and static/ folders)
+4. Scroll down, write commit message: "Fresh deploy - slim dependencies"
+5. Click "Commit changes"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4: Connect to Vercel
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to vercel.com → "Add New Project"
+2. Import your new GitHub repo
+3. Add Environment Variables:
+   DATABASE_URL = your Neon connection string
+   SECRET_KEY   = any random 32-char string
+4. Click Deploy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHY THIS WORKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Old requirements.txt had:  scikit-learn(90MB) + numpy(60MB) + pdfplumber(55MB) = 250MB+
+New requirements.txt has:  pypdf(3MB) + fpdf2(2MB) + pg8000(1MB) = ~30MB total ✓
