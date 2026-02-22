@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Resumes - AI Resume Analyzer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="nav-brand">
+                <span class="logo-icon">🧠</span>
+                <span class="brand-name">ResumeAI</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/compare" class="nav-link active">Compare</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="dashboard-section">
+        <div class="container">
+            <div class="dashboard-header">
+                <div class="header-content">
+                    <h1 class="dashboard-title">⚖️ Compare Resumes</h1>
+                    <p class="dashboard-subtitle">Compare two resume analyses side-by-side</p>
+                </div>
+            </div>
+
+            <div class="comparison-selectors" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px;">
+                <div class="selector-card" style="background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(0, 245, 212, 0.1); border-radius: 16px; padding: 24px;">
+                    <h3 style="color: #fff; margin-bottom: 16px;">Resume 1</h3>
+                    <select id="resume1" class="form-input" style="width: 100%;">
+                        <option value="">Select first resume...</option>
+                        {% for analysis in analyses %}
+                        <option value="{{ analysis.uid }}">{{ analysis.filename }} - {{ analysis.score }}%</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="selector-card" style="background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(0, 245, 212, 0.1); border-radius: 16px; padding: 24px;">
+                    <h3 style="color: #fff; margin-bottom: 16px;">Resume 2</h3>
+                    <select id="resume2" class="form-input" style="width: 100%;">
+                        <option value="">Select second resume...</option>
+                        {% for analysis in analyses %}
+                        <option value="{{ analysis.uid }}">{{ analysis.filename }} - {{ analysis.score }}%</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 40px;">
+                <button onclick="compareResumes()" class="submit-btn" style="width: auto; padding: 16px 48px;">
+                    <span>⚖️ Compare</span>
+                </button>
+            </div>
+
+            <div id="comparisonResult" style="display: none;">
+                <!-- Results will be injected here -->
+            </div>
+
+            {% if not analyses %}
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3 class="empty-title">No analyses yet</h3>
+                <p class="empty-text">You need at least 2 resume analyses to compare</p>
+                <a href="/" class="empty-cta">Analyze Resume</a>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text">
+                Built by <strong>Hassan Ahmed</strong> – AI Resume Analyzer
+            </p>
+        </div>
+    </footer>
+
+    <script src="/static/js/particles.js"></script>
+    <script>
+        function compareResumes() {
+            const uid1 = document.getElementById('resume1').value;
+            const uid2 = document.getElementById('resume2').value;
+
+            if (!uid1 || !uid2) {
+                alert('Please select both resumes');
+                return;
+            }
+
+            if (uid1 === uid2) {
+                alert('Please select different resumes');
+                return;
+            }
+
+            fetch(`/api/compare/${uid1}/${uid2}`)
+                .then(r => r.json())
+                .then(data => displayComparison(data))
+                .catch(err => alert('Comparison failed: ' + err));
+        }
+
+        function displayComparison(data) {
+            const result = document.getElementById('comparisonResult');
+            const scoreDiff = Math.abs(data.differences.score_diff);
+            const winner = data.differences.better_resume;
+
+            result.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                    <div class="stat-card ${winner === 1 ? 'winner' : ''}" style="flex-direction: column; align-items: flex-start;">
+                        <h3 style="color: #fff; margin-bottom: 16px;">📄 ${data.resume1.filename}</h3>
+                        <div style="font-size: 3rem; font-weight: 700; color: ${winner === 1 ? '#22c55e' : '#cbd5e1'};">
+                            ${data.resume1.score}%
+                        </div>
+                        <div style="color: #94a3b8; margin-top: 8px;">
+                            Keywords: ${data.resume1.keyword_score}% | Skills: ${data.resume1.skills_score}%
+                        </div>
+                        ${winner === 1 ? '<div style="margin-top: 12px; color: #22c55e; font-weight: 600;">🏆 Better Score</div>' : ''}
+                    </div>
+
+                    <div class="stat-card ${winner === 2 ? 'winner' : ''}" style="flex-direction: column; align-items: flex-start;">
+                        <h3 style="color: #fff; margin-bottom: 16px;">📄 ${data.resume2.filename}</h3>
+                        <div style="font-size: 3rem; font-weight: 700; color: ${winner === 2 ? '#22c55e' : '#cbd5e1'};">
+                            ${data.resume2.score}%
+                        </div>
+                        <div style="color: #94a3b8; margin-top: 8px;">
+                            Keywords: ${data.resume2.keyword_score}% | Skills: ${data.resume2.skills_score}%
+                        </div>
+                        ${winner === 2 ? '<div style="margin-top: 12px; color: #22c55e; font-weight: 600;">🏆 Better Score</div>' : ''}
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3 class="table-title">Comparison Details</h3>
+                    </div>
+                    <div style="padding: 24px;">
+                        <h4 style="color: #00f5d4; margin-bottom: 16px;">Common Keywords (${data.differences.common_keywords.length})</h4>
+                        <p style="color: #cbd5e1; margin-bottom: 24px;">${data.differences.common_keywords.join(', ') || 'None'}</p>
+
+                        <h4 style="color: #00f5d4; margin-bottom: 16px;">Unique to Resume 1 (${data.differences.unique_keywords_1.length})</h4>
+                        <p style="color: #cbd5e1; margin-bottom: 24px;">${data.differences.unique_keywords_1.join(', ') || 'None'}</p>
+
+                        <h4 style="color: #00f5d4; margin-bottom: 16px;">Unique to Resume 2 (${data.differences.unique_keywords_2.length})</h4>
+                        <p style="color: #cbd5e1; margin-bottom: 24px;">${data.differences.unique_keywords_2.join(', ') || 'None'}</p>
+
+                        <h4 style="color: #00f5d4; margin-bottom: 16px;">Common Skills (${data.differences.common_skills.length})</h4>
+                        <p style="color: #cbd5e1;">${data.differences.common_skills.join(', ') || 'None'}</p>
+                    </div>
+                </div>
+            `;
+
+            result.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
