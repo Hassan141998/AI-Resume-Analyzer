@@ -1,6 +1,6 @@
 """
-PDF Report Generator - Fixed Version
-Uses fpdf2 with proper error handling and font fallbacks
+PDF Report Generator - FINAL FIXED VERSION
+Completely fixes the multi_cell width issue
 """
 
 import os
@@ -18,31 +18,26 @@ def generate_pdf_report(data: Dict[str, Any]) -> str:
         return _build_pdf_with_fpdf(data)
     except Exception as exc:
         logger.exception("PDF generation failed: %s", exc)
-        # Fallback to plain text
         return _text_fallback(data)
 
 
 def _build_pdf_with_fpdf(data: Dict[str, Any]) -> str:
-    """Build PDF using fpdf2."""
+    """Build PDF using fpdf2 with completely fixed width handling."""
     from fpdf import FPDF
 
     class PDF(FPDF):
         def header(self):
-            # Header background
             self.set_fill_color(15, 23, 42)
-            self.rect(0, 0, 210, 30, 'F')
-            
-            # Title
-            self.set_font('Arial', 'B', 18)
+            self.rect(0, 0, 210, 35, 'F')
+            self.set_font('Arial', 'B', 20)
             self.set_text_color(0, 245, 212)
-            self.set_y(10)
-            self.cell(0, 8, 'AI Resume Analyzer', align='C', new_x='LMARGIN', new_y='NEXT')
-            
-            # Subtitle
+            self.set_y(12)
+            self.cell(0, 8, 'AI Resume Analyzer', align='C')
+            self.ln(8)
             self.set_font('Arial', '', 10)
             self.set_text_color(148, 163, 184)
-            self.cell(0, 6, 'Resume Analysis Report', align='C', new_x='LMARGIN', new_y='NEXT')
-            self.ln(5)
+            self.cell(0, 6, 'Professional Resume Analysis Report', align='C')
+            self.ln(10)
 
         def footer(self):
             self.set_y(-15)
@@ -50,250 +45,283 @@ def _build_pdf_with_fpdf(data: Dict[str, Any]) -> str:
             self.set_text_color(148, 163, 184)
             self.cell(0, 10, f'Page {self.page_no()} | Built by Hassan Ahmed', align='C')
 
-    # Create PDF
+    # Create PDF with safe margins
     pdf = PDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
-    pdf.set_margins(15, 35, 15)
+    pdf.set_margins(25, 40, 25)  # Large safe margins
+    pdf.set_left_margin(25)
+    pdf.set_right_margin(25)
 
     # Get data
     score = data.get('score', 0)
-    filename = data.get('filename', 'Unknown')
-    job_title = data.get('job_title') or '—'
+    filename = str(data.get('filename', 'Unknown'))[:35]
+    job_title = str(data.get('job_title') or '—')[:30]
     created = data.get('created_at', datetime.utcnow().strftime('%Y-%m-%d %H:%M'))
 
-    # Meta info box
-    pdf.set_fill_color(30, 41, 59)
-    pdf.set_draw_color(0, 245, 212)
-    pdf.set_line_width(0.5)
-    pdf.rect(14, pdf.get_y(), 182, 25, 'FD')
-    
-    pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(203, 213, 225)
-    y_pos = pdf.get_y() + 5
-    pdf.set_y(y_pos)
-    
-    # Meta data
-    pdf.cell(60, 5, f'Resume: {filename[:30]}')
-    pdf.cell(60, 5, f'Job: {job_title[:25]}')
-    pdf.cell(62, 5, f'Date: {created}', new_x='LMARGIN', new_y='NEXT')
-    pdf.ln(12)
+    # Meta info
+    pdf.set_font('Arial', 'B', 10)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 6, f'Resume: {filename}')
+    pdf.ln(5)
+    pdf.cell(0, 6, f'Job: {job_title}')
+    pdf.ln(5)
+    pdf.cell(0, 6, f'Date: {created}')
+    pdf.ln(10)
 
     # Overall Score
     _section_title(pdf, 'Overall Match Score')
     score_color = (34, 197, 94) if score >= 80 else ((245, 158, 11) if score >= 50 else (239, 68, 68))
-    
+
     pdf.set_font('Arial', 'B', 48)
     pdf.set_text_color(*score_color)
-    pdf.cell(0, 20, str(score), align='C', new_x='LMARGIN', new_y='NEXT')
-    
+    pdf.cell(0, 18, f'{score}%', align='C')
+    pdf.ln(20)
+
     pdf.set_font('Arial', '', 10)
     pdf.set_text_color(148, 163, 184)
-    sub_scores = (f"Keyword: {data.get('keyword_score', 0)}%  |  "
-                  f"Skills: {data.get('skills_score', 0)}%  |  "
-                  f"Format: {data.get('format_score', 0)}%")
-    pdf.cell(0, 6, sub_scores, align='C', new_x='LMARGIN', new_y='NEXT')
-    pdf.ln(8)
+    pdf.cell(0, 6, f"Keywords: {data.get('keyword_score', 0)}%  |  Skills: {data.get('skills_score', 0)}%  |  Format: {data.get('format_score', 0)}%", align='C')
+    pdf.ln(12)
 
     # Matched Keywords
     _section_title(pdf, 'Matched Keywords')
     matched_kw = data.get('matched_keywords', [])
     if matched_kw:
-        _tag_list(pdf, matched_kw[:20], (34, 197, 94))
+        _write_tags(pdf, matched_kw[:20], (34, 197, 94))
     else:
-        _empty_notice(pdf, 'No matched keywords found')
+        _write_line(pdf, 'No matched keywords found', italic=True)
 
     # Missing Keywords
     _section_title(pdf, 'Missing Keywords')
     missing_kw = data.get('missing_keywords', [])
     if missing_kw:
-        _tag_list(pdf, missing_kw[:20], (239, 68, 68))
+        _write_tags(pdf, missing_kw[:20], (239, 68, 68))
     else:
-        _empty_notice(pdf, 'No missing keywords identified')
+        _write_line(pdf, 'No missing keywords', italic=True)
 
     # Skills You Have
     _section_title(pdf, 'Skills You Have')
     matched_skills = data.get('matched_skills', [])
     if matched_skills:
-        _bullet_list(pdf, matched_skills, (34, 197, 94), '+')
+        _write_bullets(pdf, matched_skills[:15], (34, 197, 94), '+')
     else:
-        _empty_notice(pdf, 'No matching skills detected')
+        _write_line(pdf, 'No matching skills detected', italic=True)
 
     # Skills to Add
     _section_title(pdf, 'Skills to Add')
     missing_skills = data.get('missing_skills', [])
     if missing_skills:
-        _bullet_list(pdf, missing_skills, (239, 68, 68), '-')
+        _write_bullets(pdf, missing_skills[:15], (239, 68, 68), '-')
     else:
-        _empty_notice(pdf, 'No additional skills needed')
+        _write_line(pdf, 'No additional skills needed', italic=True)
 
     # AI Suggestions
     _section_title(pdf, 'AI Improvement Suggestions')
     suggestions = data.get('suggestions', [])
     if suggestions:
         for i, suggestion in enumerate(suggestions[:8], 1):
-            _numbered_item(pdf, i, suggestion)
+            _write_numbered(pdf, i, suggestion)
     else:
-        _empty_notice(pdf, 'No suggestions available')
+        _write_line(pdf, 'No suggestions available', italic=True)
 
     # ATS Check
     _section_title(pdf, 'ATS Compatibility Check')
     ats_issues = data.get('ats_issues', [])
     if ats_issues:
-        _bullet_list(pdf, ats_issues, (245, 158, 11), '!')
+        _write_bullets(pdf, ats_issues[:8], (245, 158, 11), '!')
     else:
         pdf.set_font('Arial', 'B', 10)
         pdf.set_text_color(34, 197, 94)
-        pdf.cell(0, 6, 'Passed - No major ATS issues detected', new_x='LMARGIN', new_y='NEXT')
-        pdf.set_font('Arial', '', 9)
-        pdf.set_text_color(148, 163, 184)
-        pdf.cell(0, 5, 'Your resume should parse correctly in most Applicant Tracking Systems.', 
-                 new_x='LMARGIN', new_y='NEXT')
-    pdf.ln(4)
+        pdf.cell(0, 6, 'Passed - No major ATS issues detected')
+        pdf.ln(6)
 
     # Footer note
-    pdf.ln(5)
+    pdf.ln(10)
     pdf.set_font('Arial', 'I', 8)
     pdf.set_text_color(100, 116, 139)
-    pdf.multi_cell(0, 4, 
-                   'This report was generated by AI Resume Analyzer. '
-                   'Scores are algorithmic estimates and should be used as guidance. '
-                   'Always review and tailor your resume for each specific application.')
+    _write_line(pdf, 'This report was generated by AI Resume Analyzer. Scores are estimates. Use as guidance.')
 
     # Save to temp file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', mode='wb')
     pdf_output = pdf.output()
     tmp.write(pdf_output)
     tmp.close()
-    
+
     logger.info(f"PDF generated successfully: {tmp.name}")
     return tmp.name
 
 
 def _section_title(pdf, title: str):
-    """Add a section title with accent bar."""
-    pdf.set_fill_color(0, 245, 212)
-    pdf.rect(14, pdf.get_y(), 3, 6, 'F')
-    pdf.set_x(20)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 6, title, new_x='LMARGIN', new_y='NEXT')
-    pdf.ln(3)
+    """Add section title."""
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(0, 245, 212)
+    pdf.cell(0, 8, title)
+    pdf.ln(8)
 
 
-def _tag_list(pdf, items, color):
-    """Display items as inline tags."""
+def _write_line(pdf, text: str, italic=False):
+    """Write a single line safely."""
+    pdf.set_font('Arial', 'I' if italic else '', 9)
+    pdf.set_text_color(148, 163, 184)
+
+    # Truncate if needed
+    max_width = pdf.w - pdf.l_margin - pdf.r_margin
+    while pdf.get_string_width(text) > max_width and len(text) > 20:
+        text = text[:-10] + '...'
+
+    pdf.cell(0, 5, text)
+    pdf.ln(8)
+
+
+def _write_tags(pdf, items, color):
+    """Write tags with proper width handling."""
     if not items:
         return
-    
+
     pdf.set_font('Arial', '', 9)
     pdf.set_text_color(*color)
-    text = '  '.join(items)
-    pdf.multi_cell(0, 5, text)
-    pdf.ln(5)
+
+    # Calculate max width
+    max_width = pdf.w - pdf.l_margin - pdf.r_margin
+    current_line = ""
+
+    for item in items:
+        item_str = str(item)[:25]  # Limit item length
+        test_line = current_line + ("  " if current_line else "") + item_str
+
+        if pdf.get_string_width(test_line) > max_width:
+            # Print current line and start new one
+            if current_line:
+                pdf.cell(0, 5, current_line)
+                pdf.ln(5)
+            current_line = item_str
+        else:
+            current_line = test_line
+
+    # Print remaining
+    if current_line:
+        pdf.cell(0, 5, current_line)
+        pdf.ln(8)
 
 
-def _bullet_list(pdf, items, color, marker='+'):
-    """Display items as bulleted list."""
+def _write_bullets(pdf, items, color, marker='+'):
+    """Write bulleted list with safe width."""
     if not items:
         return
-    
-    pdf.set_font('Arial', '', 9)
-    for item in items[:15]:  # Limit to prevent overflow
+
+    max_width = pdf.w - pdf.l_margin - pdf.r_margin - 10
+
+    for item in items[:15]:
+        item_str = str(item)
+
+        # Truncate if too long
+        while pdf.get_string_width(item_str) > max_width and len(item_str) > 15:
+            item_str = item_str[:-10] + '...'
+
+        pdf.set_font('Arial', 'B', 9)
         pdf.set_text_color(*color)
         pdf.cell(6, 5, marker)
+
+        pdf.set_font('Arial', '', 9)
         pdf.set_text_color(203, 213, 225)
-        pdf.multi_cell(0, 5, item)
-    pdf.ln(4)
+        pdf.cell(0, 5, item_str)
+        pdf.ln(5)
+
+    pdf.ln(5)
 
 
-def _numbered_item(pdf, num: int, text: str):
-    """Display numbered item."""
+def _write_numbered(pdf, num: int, text: str):
+    """Write numbered item with safe width."""
+    max_width = pdf.w - pdf.l_margin - pdf.r_margin - 15
+    text_str = str(text)
+
+    # Truncate if too long
+    while pdf.get_string_width(text_str) > max_width * 2 and len(text_str) > 30:
+        text_str = text_str[:-15] + '...'
+
     pdf.set_font('Arial', 'B', 9)
     pdf.set_text_color(0, 245, 212)
-    pdf.cell(8, 5, f'{num}.')
+    pdf.cell(10, 5, f'{num}.')
+
     pdf.set_font('Arial', '', 9)
     pdf.set_text_color(203, 213, 225)
-    pdf.multi_cell(0, 5, text)
 
+    # Use cell instead of multi_cell to avoid the error
+    remaining_width = pdf.w - pdf.get_x() - pdf.r_margin
 
-def _empty_notice(pdf, message: str):
-    """Display empty state message."""
-    pdf.set_font('Arial', 'I', 9)
-    pdf.set_text_color(100, 116, 139)
-    pdf.cell(0, 5, message, new_x='LMARGIN', new_y='NEXT')
-    pdf.ln(5)
+    if pdf.get_string_width(text_str) <= remaining_width:
+        pdf.cell(0, 5, text_str)
+        pdf.ln(5)
+    else:
+        # Split into multiple lines manually
+        words = text_str.split()
+        current_line = ""
+
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            if pdf.get_string_width(test_line) > remaining_width:
+                if current_line:
+                    pdf.cell(0, 5, current_line)
+                    pdf.ln(5)
+                    pdf.cell(10, 5, '')  # Indent
+                    current_line = word
+                else:
+                    # Word itself is too long
+                    pdf.cell(0, 5, word[:50] + '...')
+                    pdf.ln(5)
+                    current_line = ""
+            else:
+                current_line = test_line
+
+        if current_line:
+            pdf.cell(0, 5, current_line)
+            pdf.ln(5)
+
+    pdf.ln(2)
 
 
 def _text_fallback(data: Dict[str, Any]) -> str:
     """Generate plain text fallback report."""
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w', encoding='utf-8')
-    
-    # Build ATS issues list
-    ats_issues_list = data.get('ats_issues', [])
-    if ats_issues_list:
-        ats_lines = [f'  ! {issue}' for issue in ats_issues_list]
-    else:
-        ats_lines = ['  No issues detected']
-    
+
     lines = [
-        '=' * 60,
+        '=' * 70,
         'AI RESUME ANALYZER - ANALYSIS REPORT',
-        '=' * 60,
+        '=' * 70,
         '',
         f"Resume: {data.get('filename', 'Unknown')}",
-        f"Job: {data.get('job_title', '—')}",
-        f"Score: {data.get('score', 0)}%",
+        f"Job Title: {data.get('job_title', '—')}",
+        f"Overall Score: {data.get('score', 0)}%",
+        f"  - Keywords: {data.get('keyword_score', 0)}%",
+        f"  - Skills: {data.get('skills_score', 0)}%",
+        f"  - Format: {data.get('format_score', 0)}%",
         f"Date: {data.get('created_at', '')}",
         '',
         'MATCHED KEYWORDS:',
+        *[f'  + {k}' for k in data.get('matched_keywords', [])[:25]],
+        '',
+        'MISSING KEYWORDS:',
+        *[f'  - {k}' for k in data.get('missing_keywords', [])[:25]],
+        '',
+        'MATCHED SKILLS:',
+        *[f'  + {s}' for s in data.get('matched_skills', [])],
+        '',
+        'MISSING SKILLS:',
+        *[f'  - {s}' for s in data.get('missing_skills', [])],
+        '',
+        'AI SUGGESTIONS:',
+        *[f'  {i+1}. {s}' for i, s in enumerate(data.get('suggestions', []))],
+        '',
+        'ATS ISSUES:',
+        *([f'  ! {issue}' for issue in data.get('ats_issues', [])] if data.get('ats_issues') else ['  No issues detected']),
+        '',
+        '=' * 70,
+        'Built by Hassan Ahmed - AI Resume Analyzer',
+        '=' * 70,
     ]
-    
-    # Add matched keywords
-    for k in data.get('matched_keywords', [])[:20]:
-        lines.append(f'  + {k}')
-    
-    lines.append('')
-    lines.append('MISSING KEYWORDS:')
-    
-    # Add missing keywords
-    for k in data.get('missing_keywords', [])[:20]:
-        lines.append(f'  - {k}')
-    
-    lines.append('')
-    lines.append('MATCHED SKILLS:')
-    
-    # Add matched skills
-    for s in data.get('matched_skills', []):
-        lines.append(f'  + {s}')
-    
-    lines.append('')
-    lines.append('MISSING SKILLS:')
-    
-    # Add missing skills
-    for s in data.get('missing_skills', []):
-        lines.append(f'  - {s}')
-    
-    lines.append('')
-    lines.append('AI SUGGESTIONS:')
-    
-    # Add suggestions
-    for i, s in enumerate(data.get('suggestions', []), 1):
-        lines.append(f'  {i}. {s}')
-    
-    lines.append('')
-    lines.append('ATS ISSUES:')
-    
-    # Add ATS issues
-    lines.extend(ats_lines)
-    
-    lines.append('')
-    lines.append('=' * 60)
-    lines.append('Built by Hassan Ahmed - AI Resume Analyzer')
-    lines.append('=' * 60)
-    
+
     tmp.write('\n'.join(lines))
     tmp.close()
-    
+
     logger.warning(f"PDF generation failed, created text fallback: {tmp.name}")
     return tmp.name
