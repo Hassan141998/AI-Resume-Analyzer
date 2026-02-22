@@ -8,10 +8,8 @@
     <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
 </head>
 <body>
-    <!-- Particle Canvas Background -->
     <canvas id="particleCanvas"></canvas>
 
-    <!-- Navigation -->
     <nav class="navbar">
         <div class="container nav-container">
             <div class="nav-brand">
@@ -21,11 +19,11 @@
             <div class="nav-links">
                 <a href="/" class="nav-link active">Home</a>
                 <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/compare" class="nav-link">Compare</a>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section -->
     <section class="hero">
         <div class="container">
             <div class="hero-content">
@@ -41,8 +39,7 @@
                     Upload your CV and paste a job description. Get an instant ATS compatibility score,
                     keyword gap analysis, and personalised improvement suggestions.
                 </p>
-                
-                <!-- Feature Pills -->
+
                 <div class="feature-pills">
                     <div class="pill">
                         <span class="pill-icon">📄</span>
@@ -62,7 +59,6 @@
                     </div>
                 </div>
 
-                <!-- Quick Preview Cards -->
                 <div class="preview-cards">
                     <div class="preview-card">
                         <div class="preview-icon">📊</div>
@@ -82,31 +78,22 @@
         </div>
     </section>
 
-    <!-- Upload Section -->
     <section id="upload" class="upload-section">
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">Upload your resume and paste the job description below</h2>
             </div>
 
-            <!-- SIMPLIFIED FORM - NO JAVASCRIPT REQUIRED -->
             <form method="POST" action="/upload" enctype="multipart/form-data" class="upload-form">
-                
-                <!-- Resume Upload -->
                 <div class="form-group">
                     <label class="form-label">
                         <span class="label-text">Upload Resume</span>
                         <span class="label-required">*</span>
                     </label>
-                    
+
                     <div class="upload-zone">
-                        <input type="file" 
-                               name="resume" 
-                               id="resumeFile" 
-                               accept=".pdf,.docx,.doc" 
-                               required 
-                               style="display: none;">
-                        
+                        <input type="file" name="resume" id="resumeFile" accept=".pdf,.docx,.doc" required style="display: none;">
+
                         <label for="resumeFile" class="upload-label">
                             <div class="upload-icon">📎</div>
                             <div class="upload-text">
@@ -114,7 +101,7 @@
                                 <p>Supported: PDF, DOCX · Max 10 MB</p>
                             </div>
                         </label>
-                        
+
                         <div id="filePreview" style="display: none; margin-top: 15px; padding: 15px; background: rgba(0, 245, 212, 0.1); border-radius: 8px;">
                             <strong>Selected file:</strong> <span id="selectedFileName"></span>
                             <span id="selectedFileSize" style="margin-left: 10px; color: #94a3b8;"></span>
@@ -122,38 +109,26 @@
                     </div>
                 </div>
 
-                <!-- Job Title (Optional) -->
                 <div class="form-group">
                     <label for="jobTitle" class="form-label">
                         <span class="label-text">Job Title</span>
                         <span class="label-optional">(optional)</span>
                     </label>
-                    <input type="text" 
-                           id="jobTitle" 
-                           name="job_title" 
-                           class="form-input" 
-                           placeholder="e.g. Senior Software Engineer">
+                    <input type="text" id="jobTitle" name="job_title" class="form-input" placeholder="e.g. Senior Software Engineer">
                 </div>
 
-                <!-- Job Description -->
                 <div class="form-group">
                     <label for="jobDescription" class="form-label">
                         <span class="label-text">Job Description</span>
                         <span class="label-required">*</span>
                     </label>
-                    <textarea id="jobDescription" 
-                              name="job_description" 
-                              class="form-textarea" 
-                              rows="12" 
-                              placeholder="Paste the full job description" 
-                              required></textarea>
+                    <textarea id="jobDescription" name="job_description" class="form-textarea" rows="12" placeholder="Paste the full job description" required></textarea>
                     <div class="textarea-hint">
                         <span class="char-count">0 characters</span>
                         <span class="hint-text">More detail = better analysis</span>
                     </div>
                 </div>
 
-                <!-- Submit Button -->
                 <button type="submit" class="submit-btn">
                     <span class="btn-icon">🔍</span>
                     <span>Analyze Resume</span>
@@ -166,7 +141,6 @@
         </div>
     </section>
 
-    <!-- Features Section -->
     <section class="features-section">
         <div class="container">
             <h2 class="section-title">What You Get</h2>
@@ -212,7 +186,6 @@
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <p class="footer-text">
@@ -224,29 +197,23 @@
         </div>
     </footer>
 
-    <!-- Simple JavaScript for File Preview and Character Count -->
     <script>
-        // File preview
         document.getElementById('resumeFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 document.getElementById('selectedFileName').textContent = file.name;
-                document.getElementById('selectedFileSize').textContent = 
+                document.getElementById('selectedFileSize').textContent =
                     '(' + (file.size / 1024).toFixed(1) + ' KB)';
                 document.getElementById('filePreview').style.display = 'block';
             }
         });
 
-        // Character count
         document.getElementById('jobDescription').addEventListener('input', function(e) {
-            document.querySelector('.char-count').textContent = 
+            document.querySelector('.char-count').textContent =
                 e.target.value.length.toLocaleString() + ' characters';
         });
-
-        console.log('✅ Form ready - NO complex JavaScript needed!');
     </script>
 
-    <!-- Particle animation (optional, visual only) -->
     <script src="/static/js/particles.js"></script>
 </body>
 </html>
