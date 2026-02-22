@@ -1,246 +1,412 @@
-{% extends "base.html" %}
-{% block title %}Analysis Result – {{ data.filename }}{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Result - {{ data.filename }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
 
-{% block extra_head %}
-<style>
-  .score-circle svg { transform: rotate(-90deg); }
-</style>
-{% endblock %}
-
-{% block content %}
-
-<!-- ── Result Hero ─────────────────────────────────────────────────────────── -->
-<section class="result-hero">
-  <div class="result-hero-inner">
-    <div class="result-meta">
-      <div class="result-badge">
-        {% if data.score >= 80 %}
-          <i class="fas fa-trophy text-green"></i> Excellent Match
-        {% elif data.score >= 60 %}
-          <i class="fas fa-thumbs-up text-aqua"></i> Good Match
-        {% elif data.score >= 40 %}
-          <i class="fas fa-exclamation-triangle text-yellow"></i> Fair Match
-        {% else %}
-          <i class="fas fa-times-circle text-pink"></i> Needs Work
-        {% endif %}
-      </div>
-      <h1 class="result-title">Resume Analysis Complete</h1>
-      <p class="result-subtitle">
-        <i class="fas fa-file-alt"></i> {{ data.filename }}
-        {% if data.job_title %}· <i class="fas fa-briefcase"></i> {{ data.job_title }}{% endif %}
-        · <i class="fas fa-clock"></i> {{ data.created_at }}
-      </p>
-    </div>
-
-    <!-- Score Circle -->
-    <div class="score-circle-wrap">
-      <div class="score-circle" data-score="{{ data.score }}">
-        <svg viewBox="0 0 120 120" width="160" height="160">
-          <circle class="track" cx="60" cy="60" r="54" fill="none" stroke-width="10"/>
-          <circle class="fill" cx="60" cy="60" r="54" fill="none" stroke-width="10"
-                  stroke-dasharray="{{ (data.score / 100 * 339.29) | round(2) }} 339.29"
-                  id="scoreFill"/>
-        </svg>
-        <div class="score-text">
-          <span class="score-number" id="scoreNumber">0</span>
-          <span class="score-label">/ 100</span>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="nav-brand">
+                <span class="logo-icon">🧠</span>
+                <span class="brand-name">ResumeAI</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/compare" class="nav-link">Compare</a>
+            </div>
         </div>
-      </div>
-      <p class="score-desc">
-        {% if data.score >= 80 %}Your resume is highly tailored for this role!
-        {% elif data.score >= 60 %}Strong resume with room for improvement.
-        {% elif data.score >= 40 %}Resume needs targeted optimisation.
-        {% else %}Significant gaps found. Follow the suggestions below.
-        {% endif %}
-      </p>
-    </div>
-  </div>
+    </nav>
 
-  <!-- Sub-scores -->
-  <div class="sub-scores">
-    <div class="sub-score-card glass-card">
-      <i class="fas fa-key text-aqua"></i>
-      <div>
-        <span class="sub-label">Keyword Match</span>
-        <div class="mini-bar">
-          <div class="mini-fill" style="width:{{ data.keyword_score }}%"></div>
+    <!-- Result Hero Section -->
+    <section class="result-section">
+        <div class="container">
+            <!-- Status Badge -->
+            <div class="result-badge-container" style="text-align: center; margin-bottom: 20px;">
+                {% if data.score >= 80 %}
+                <div class="status-badge excellent">
+                    <span class="badge-icon">🏆</span>
+                    <span>Excellent Match</span>
+                </div>
+                {% elif data.score >= 60 %}
+                <div class="status-badge good">
+                    <span class="badge-icon">✓</span>
+                    <span>Good Match</span>
+                </div>
+                {% elif data.score >= 40 %}
+                <div class="status-badge fair">
+                    <span class="badge-icon">⚠</span>
+                    <span>Fair Match</span>
+                </div>
+                {% else %}
+                <div class="status-badge needs-work">
+                    <span class="badge-icon">⚡</span>
+                    <span>Needs Work</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <h1 class="result-title" style="text-align: center; font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 12px;">
+                Resume Analysis Complete
+            </h1>
+
+            <!-- Meta Info -->
+            <div class="result-meta" style="text-align: center; color: #94a3b8; margin-bottom: 40px;">
+                <span>📄 {{ data.filename }}</span>
+                {% if data.job_title %}
+                <span style="margin: 0 12px;">•</span>
+                <span>💼 {{ data.job_title }}</span>
+                {% endif %}
+                <span style="margin: 0 12px;">•</span>
+                <span>📅 {{ data.created_at }}</span>
+            </div>
+
+            <!-- Score Circle + Action Buttons -->
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 40px; margin-bottom: 40px; align-items: center;">
+                <!-- Score Circle -->
+                <div style="text-align: center;">
+                    <div class="score-circle-modern">
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+                            <circle cx="100" cy="100" r="90" fill="none" 
+                                    stroke="url(#scoreGradient)" 
+                                    stroke-width="12" 
+                                    stroke-linecap="round"
+                                    stroke-dasharray="{{ (data.score / 100 * 565.5) | round(2) }} 565.5"
+                                    transform="rotate(-90 100 100)"
+                                    class="score-progress"/>
+                            <defs>
+                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#00f5d4;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <div style="font-size: 3.5rem; font-weight: 800; color: #fff; line-height: 1;">
+                                <span id="scoreCounter">0</span>
+                            </div>
+                            <div style="font-size: 1.2rem; color: #94a3b8; margin-top: 4px;">/ 100</div>
+                        </div>
+                    </div>
+                    <p style="color: #cbd5e1; margin-top: 20px; font-size: 1.1rem;">
+                        {% if data.score >= 80 %}Highly tailored! 🎯
+                        {% elif data.score >= 60 %}Strong foundation ✓
+                        {% elif data.score >= 40 %}Needs optimization ⚡
+                        {% else %}Follow suggestions below 📝
+                        {% endif %}
+                    </p>
+                </div>
+
+                <!-- Sub-Scores -->
+                <div style="display: grid; gap: 16px;">
+                    <div class="metric-bar">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #cbd5e1; font-weight: 600;">🔑 Keyword Match</span>
+                            <span style="color: #00f5d4; font-weight: 700;">{{ data.keyword_score }}%</span>
+                        </div>
+                        <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div class="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f5d4, #00d4ff); transition: width 1s ease;" data-width="{{ data.keyword_score }}"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #cbd5e1; font-weight: 600;">🎯 Skills Match</span>
+                            <span style="color: #a78bfa; font-weight: 700;">{{ data.skills_score }}%</span>
+                        </div>
+                        <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div class="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a78bfa, #ec4899); transition: width 1s ease 0.2s;" data-width="{{ data.skills_score }}"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-bar">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #cbd5e1; font-weight: 600;">📝 Format Quality</span>
+                            <span style="color: #22c55e; font-weight: 700;">{{ data.format_score }}%</span>
+                        </div>
+                        <div style="height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                            <div class="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #22c55e, #10b981); transition: width 1s ease 0.4s;" data-width="{{ data.format_score }}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 60px; flex-wrap: wrap;">
+                <a href="/download-report/{{ data.uid }}" class="action-btn primary">
+                    <span>📥</span>
+                    <span>Download PDF Report</span>
+                </a>
+                <button onclick="emailReport()" class="action-btn secondary">
+                    <span>📧</span>
+                    <span>Email Report</span>
+                </button>
+                <a href="/" class="action-btn tertiary">
+                    <span>🔄</span>
+                    <span>Analyze Another</span>
+                </a>
+            </div>
+
+            <!-- Analysis Grid -->
+            <div class="analysis-grid-modern">
+                <!-- Matched Keywords -->
+                <div class="analysis-card-modern green-card">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>✓ Matched Keywords</h3>
+                            <p>Found in your resume</p>
+                        </div>
+                        <div class="count-badge-modern green">{{ data.matched_keywords | length }}</div>
+                    </div>
+                    <div class="card-content">
+                        {% if data.matched_keywords %}
+                        <div class="tag-grid">
+                            {% for kw in data.matched_keywords %}
+                            <span class="tag-modern green">{{ kw }}</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-small">
+                            <span style="font-size: 2rem;">🔍</span>
+                            <p>No matching keywords found</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Missing Keywords -->
+                <div class="analysis-card-modern red-card">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>✗ Missing Keywords</h3>
+                            <p>Add these to improve</p>
+                        </div>
+                        <div class="count-badge-modern red">{{ data.missing_keywords | length }}</div>
+                    </div>
+                    <div class="card-content">
+                        {% if data.missing_keywords %}
+                        <div class="tag-grid">
+                            {% for kw in data.missing_keywords %}
+                            <span class="tag-modern red">{{ kw }}</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-small">
+                            <span style="font-size: 2rem;">🎉</span>
+                            <p>No keywords missing!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Matched Skills -->
+                <div class="analysis-card-modern blue-card">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>💪 Skills You Have</h3>
+                            <p>Detected from resume</p>
+                        </div>
+                        <div class="count-badge-modern blue">{{ data.matched_skills | length }}</div>
+                    </div>
+                    <div class="card-content">
+                        {% if data.matched_skills %}
+                        <div class="skills-list-modern">
+                            {% for skill in data.matched_skills %}
+                            <div class="skill-item-modern">
+                                <span class="skill-check">✓</span>
+                                <span>{{ skill }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-small">
+                            <span style="font-size: 2rem;">💼</span>
+                            <p>No matching skills detected</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Missing Skills -->
+                <div class="analysis-card-modern purple-card">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>🎯 Skills to Add</h3>
+                            <p>Recommended additions</p>
+                        </div>
+                        <div class="count-badge-modern purple">{{ data.missing_skills | length }}</div>
+                    </div>
+                    <div class="card-content">
+                        {% if data.missing_skills %}
+                        <div class="skills-list-modern">
+                            {% for skill in data.missing_skills %}
+                            <div class="skill-item-modern missing">
+                                <span class="skill-check">+</span>
+                                <span>{{ skill }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-small">
+                            <span style="font-size: 2rem;">🌟</span>
+                            <p>You have all required skills!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- AI Suggestions -->
+                <div class="analysis-card-modern suggestions-card">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>💡 AI Improvement Suggestions</h3>
+                            <p>Personalized recommendations</p>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        {% if data.suggestions %}
+                        <div class="suggestions-list-modern">
+                            {% for suggestion in data.suggestions %}
+                            <div class="suggestion-item-modern">
+                                <div class="suggestion-number">{{ loop.index }}</div>
+                                <p>{{ suggestion }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state-small">
+                            <span style="font-size: 2rem;">✨</span>
+                            <p>Your resume looks great!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- ATS Check -->
+                <div class="analysis-card-modern {% if data.ats_issues %}warning-card{% else %}success-card{% endif %}">
+                    <div class="card-header-modern">
+                        <div>
+                            <h3>🤖 ATS Compatibility</h3>
+                            <p>Applicant Tracking System</p>
+                        </div>
+                        {% if data.ats_issues %}
+                        <div class="count-badge-modern orange">{{ data.ats_issues | length }}</div>
+                        {% else %}
+                        <div class="count-badge-modern green">✓ Passed</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-content">
+                        {% if data.ats_issues %}
+                        <div class="ats-issues-list">
+                            {% for issue in data.ats_issues %}
+                            <div class="ats-issue-item">
+                                <span style="color: #f59e0b;">⚠</span>
+                                <p>{{ issue }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="ats-pass-state">
+                            <span style="font-size: 3rem; color: #22c55e;">✓</span>
+                            <h4 style="color: #22c55e; margin: 16px 0 8px;">No Issues Detected</h4>
+                            <p style="color: #94a3b8;">Your resume should parse correctly in most ATS systems.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-        <span class="sub-value">{{ data.keyword_score }}%</span>
-      </div>
-    </div>
-    <div class="sub-score-card glass-card">
-      <i class="fas fa-tools text-pink"></i>
-      <div>
-        <span class="sub-label">Skills Match</span>
-        <div class="mini-bar">
-          <div class="mini-fill pink" style="width:{{ data.skills_score }}%"></div>
+    </section>
+
+    <!-- Email Modal -->
+    <div id="emailModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 20px; color: #fff;">📧 Email Report</h3>
+            <input type="email" id="emailInput" placeholder="your-email@example.com" class="form-input" style="margin-bottom: 16px;">
+            <div style="display: flex; gap: 12px;">
+                <button onclick="sendEmail()" class="submit-btn" style="flex: 1;">Send</button>
+                <button onclick="closeEmailModal()" class="btn-secondary" style="flex: 1; background: rgba(255,255,255,0.1); color: #fff;">Cancel</button>
+            </div>
         </div>
-        <span class="sub-value">{{ data.skills_score }}%</span>
-      </div>
     </div>
-    <div class="sub-score-card glass-card">
-      <i class="fas fa-align-left text-aqua"></i>
-      <div>
-        <span class="sub-label">Format Score</span>
-        <div class="mini-bar">
-          <div class="mini-fill" style="width:{{ data.format_score }}%"></div>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text">Built by <strong>Hassan Ahmed</strong> – AI Resume Analyzer</p>
         </div>
-        <span class="sub-value">{{ data.format_score }}%</span>
-      </div>
-    </div>
-  </div>
+    </footer>
 
-  <!-- Action Buttons -->
-  <div class="result-actions">
-    <a href="{{ url_for('download_report', uid=data.uid) }}" class="btn-primary">
-      <i class="fas fa-download"></i> Download PDF Report
-    </a>
-    <a href="{{ url_for('index') }}" class="btn-secondary">
-      <i class="fas fa-redo"></i> Analyze Another
-    </a>
-  </div>
-</section>
+    <script src="/static/js/particles.js"></script>
+    <script>
+        // Animate score counter
+        const scoreElement = document.getElementById('scoreCounter');
+        const targetScore = {{ data.score }};
+        let currentScore = 0;
+        const increment = targetScore / 50;
+        
+        const timer = setInterval(() => {
+            currentScore += increment;
+            if (currentScore >= targetScore) {
+                scoreElement.textContent = targetScore;
+                clearInterval(timer);
+            } else {
+                scoreElement.textContent = Math.floor(currentScore);
+            }
+        }, 20);
 
-<!-- ── Analysis Cards ─────────────────────────────────────────────────────── -->
-<section class="analysis-grid">
+        // Animate progress bars
+        setTimeout(() => {
+            document.querySelectorAll('.progress-fill').forEach(bar => {
+                bar.style.width = bar.getAttribute('data-width') + '%';
+            });
+        }, 100);
 
-  <!-- Matched Keywords -->
-  <div class="analysis-card glass-card slide-in" style="--delay:0.1s">
-    <div class="card-header-colored green-header">
-      <i class="fas fa-check-circle"></i>
-      <h3>Matched Keywords</h3>
-      <span class="count-badge">{{ data.matched_keywords | length }}</span>
-    </div>
-    <div class="tag-cloud">
-      {% if data.matched_keywords %}
-        {% for kw in data.matched_keywords %}
-          <span class="tag tag-green">{{ kw }}</span>
-        {% endfor %}
-      {% else %}
-        <p class="empty-msg">No matching keywords found.</p>
-      {% endif %}
-    </div>
-  </div>
+        // Email modal functions
+        function emailReport() {
+            document.getElementById('emailModal').style.display = 'flex';
+        }
 
-  <!-- Missing Keywords -->
-  <div class="analysis-card glass-card slide-in" style="--delay:0.2s">
-    <div class="card-header-colored red-header">
-      <i class="fas fa-times-circle"></i>
-      <h3>Missing Keywords</h3>
-      <span class="count-badge">{{ data.missing_keywords | length }}</span>
-    </div>
-    <div class="tag-cloud">
-      {% if data.missing_keywords %}
-        {% for kw in data.missing_keywords %}
-          <span class="tag tag-red">{{ kw }}</span>
-        {% endfor %}
-      {% else %}
-        <p class="empty-msg">Great – no critical keywords missing!</p>
-      {% endif %}
-    </div>
-  </div>
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+        }
 
-  <!-- Matched Skills -->
-  <div class="analysis-card glass-card slide-in" style="--delay:0.3s">
-    <div class="card-header-colored teal-header">
-      <i class="fas fa-code"></i>
-      <h3>Skills You Have</h3>
-      <span class="count-badge">{{ data.matched_skills | length }}</span>
-    </div>
-    <div class="skills-list">
-      {% if data.matched_skills %}
-        {% for skill in data.matched_skills %}
-          <div class="skill-row">
-            <i class="fas fa-check text-green"></i>
-            <span>{{ skill }}</span>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="empty-msg">No matching skills detected from JD.</p>
-      {% endif %}
-    </div>
-  </div>
+        function sendEmail() {
+            const email = document.getElementById('emailInput').value;
+            if (!email) {
+                alert('Please enter an email address');
+                return;
+            }
 
-  <!-- Missing Skills -->
-  <div class="analysis-card glass-card slide-in" style="--delay:0.4s">
-    <div class="card-header-colored pink-header">
-      <i class="fas fa-plus-circle"></i>
-      <h3>Skills to Add</h3>
-      <span class="count-badge">{{ data.missing_skills | length }}</span>
-    </div>
-    <div class="skills-list">
-      {% if data.missing_skills %}
-        {% for skill in data.missing_skills %}
-          <div class="skill-row">
-            <i class="fas fa-times text-pink"></i>
-            <span>{{ skill }}</span>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="empty-msg">You have all the required skills!</p>
-      {% endif %}
-    </div>
-  </div>
+            fetch('/email-report/{{ data.uid }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Report sent to ' + email);
+                    closeEmailModal();
+                } else {
+                    alert('❌ ' + (data.error || 'Failed to send email'));
+                }
+            })
+            .catch(err => alert('Error: ' + err));
+        }
 
-  <!-- AI Suggestions -->
-  <div class="analysis-card glass-card slide-in wide-card" style="--delay:0.5s">
-    <div class="card-header-colored blue-header">
-      <i class="fas fa-lightbulb"></i>
-      <h3>AI Improvement Suggestions</h3>
-    </div>
-    <div class="suggestions-list">
-      {% if data.suggestions %}
-        {% for idx, suggestion in data.suggestions | enumerate %}
-          <div class="suggestion-item">
-            <div class="suggestion-num">{{ idx + 1 }}</div>
-            <p>{{ suggestion }}</p>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="empty-msg">No suggestions – your resume looks great!</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- ATS Check -->
-  <div class="analysis-card glass-card slide-in wide-card" style="--delay:0.6s">
-    <div class="card-header-colored {% if data.ats_issues %}yellow-header{% else %}green-header{% endif %}">
-      <i class="fas fa-robot"></i>
-      <h3>ATS Compatibility Check</h3>
-      {% if data.ats_issues %}
-        <span class="count-badge badge-yellow">{{ data.ats_issues | length }} issues</span>
-      {% else %}
-        <span class="count-badge badge-green">Passed</span>
-      {% endif %}
-    </div>
-    {% if data.ats_issues %}
-      <div class="ats-list">
-        {% for issue in data.ats_issues %}
-          <div class="ats-item">
-            <i class="fas fa-exclamation-triangle text-yellow"></i>
-            <p>{{ issue }}</p>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="ats-pass">
-        <i class="fas fa-check-circle text-green fa-2x"></i>
-        <p>No major ATS issues detected. Your resume should parse correctly in most systems.</p>
-      </div>
-    {% endif %}
-  </div>
-
-</section>
-
-<!-- Success animation trigger -->
-<div class="success-confetti" id="confetti"></div>
-
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-  // Pass score to JS for animation
-  window.RESUME_SCORE = {{ data.score }};
-</script>
-<script src="{{ url_for('static', filename='js/result.js') }}"></script>
-{% endblock %}
+        // Close modal on outside click
+        document.getElementById('emailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEmailModal();
+        });
+    </script>
+</body>
+</html>
