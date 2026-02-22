@@ -1,152 +1,299 @@
-{% extends "base.html" %}
-{% block title %}Admin Dashboard – AI Resume Analyzer{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AI Resume Analyzer</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
 
-{% block extra_head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-{% endblock %}
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="nav-brand">
+                <span class="logo-icon">🧠</span>
+                <span class="brand-name">ResumeAI</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Home</a>
+                <a href="/dashboard" class="nav-link active">Dashboard</a>
+                <a href="/compare" class="nav-link">Compare</a>
+            </div>
+        </div>
+    </nav>
 
-{% block content %}
+    <section class="dashboard-section">
+        <div class="container">
+            <div class="dashboard-header">
+                <div class="header-content">
+                    <h1 class="dashboard-title">Analytics Dashboard</h1>
+                    <p class="dashboard-subtitle">Track your resume analysis performance and insights</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <a href="/" class="new-analysis-btn">
+                        <span class="btn-icon">➕</span>
+                        <span>New Analysis</span>
+                    </a>
+                    <a href="/export-csv" class="new-analysis-btn" style="background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);">
+                        <span class="btn-icon">📊</span>
+                        <span>Export CSV</span>
+                    </a>
+                </div>
+            </div>
 
-<section class="dashboard-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-value" data-value="{{ total }}">0</div>
+                        <div class="stat-label">Total Analyses</div>
+                    </div>
+                </div>
 
-  <!-- Header -->
-  <div class="dashboard-header">
-    <div>
-      <h1 class="dashboard-title"><i class="fas fa-chart-line"></i> Analytics Dashboard</h1>
-      <p class="dashboard-sub">Overview of all resume analyses</p>
-    </div>
-    <a href="{{ url_for('index') }}" class="btn-primary">
-      <i class="fas fa-plus"></i> New Analysis
-    </a>
-  </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">⭐</div>
+                    <div class="stat-content">
+                        <div class="stat-value" data-value="{{ avg_score }}">0</div>
+                        <div class="stat-label">Average Score</div>
+                    </div>
+                </div>
 
-  <!-- Stat Cards -->
-  <div class="stats-grid">
-    <div class="stat-card glass-card">
-      <div class="stat-icon icon-aqua"><i class="fas fa-file-alt"></i></div>
-      <div class="stat-content">
-        <span class="stat-value" data-target="{{ total }}">0</span>
-        <span class="stat-label">Total Analyses</span>
-      </div>
-    </div>
-    <div class="stat-card glass-card">
-      <div class="stat-icon icon-pink"><i class="fas fa-star"></i></div>
-      <div class="stat-content">
-        <span class="stat-value" data-target="{{ avg_score }}">0</span>
-        <span class="stat-label">Average Score</span>
-      </div>
-    </div>
-    <div class="stat-card glass-card">
-      <div class="stat-icon icon-aqua"><i class="fas fa-trophy"></i></div>
-      <div class="stat-content">
-        <span class="stat-value" data-target="{{ high_score }}">0</span>
-        <span class="stat-label">High Scores ≥80</span>
-      </div>
-    </div>
-    <div class="stat-card glass-card">
-      <div class="stat-icon icon-pink"><i class="fas fa-exclamation-circle"></i></div>
-      <div class="stat-content">
-        <span class="stat-value" data-target="{{ low_score }}">0</span>
-        <span class="stat-label">Low Scores &lt;50</span>
-      </div>
-    </div>
-  </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple">🎯</div>
+                    <div class="stat-content">
+                        <div class="stat-value" data-value="{{ high_score }}">0</div>
+                        <div class="stat-label">High Scores (80%+)</div>
+                    </div>
+                </div>
 
-  <!-- Charts Row -->
-  <div class="charts-row">
-    <!-- Distribution Pie -->
-    <div class="chart-card glass-card">
-      <h3><i class="fas fa-chart-pie"></i> Score Distribution</h3>
-      <div class="chart-wrap">
-        <canvas id="pieChart"></canvas>
-      </div>
-    </div>
-    <!-- Recent Scores Bar -->
-    <div class="chart-card chart-wide glass-card">
-      <h3><i class="fas fa-chart-bar"></i> Recent Scores</h3>
-      <div class="chart-wrap">
-        <canvas id="barChart"></canvas>
-      </div>
-    </div>
-  </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">📈</div>
+                    <div class="stat-content">
+                        <div class="stat-value" data-value="{{ mid_score }}">0</div>
+                        <div class="stat-label">Good Scores (50-79%)</div>
+                    </div>
+                </div>
+            </div>
 
-  <!-- Table -->
-  <div class="table-card glass-card">
-    <div class="table-header">
-      <h3><i class="fas fa-list"></i> All Analyses</h3>
-      <input type="text" id="tableSearch" placeholder="Search filename…" class="input-field search-field"/>
-    </div>
-    {% if analyses %}
-    <div class="table-responsive">
-      <table class="data-table" id="analysisTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Filename</th>
-            <th>Job Title</th>
-            <th>Score</th>
-            <th>Keywords</th>
-            <th>Skills</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in analyses %}
-          <tr data-id="{{ a.id }}">
-            <td class="muted-cell">{{ loop.index }}</td>
-            <td class="filename-cell">
-              <i class="fas fa-file-alt text-aqua"></i>
-              <a href="{{ url_for('result', uid=a.uid) }}">{{ a.filename }}</a>
-            </td>
-            <td>{{ a.job_title or '—' }}</td>
-            <td>
-              <span class="score-badge
-                {% if a.score >= 80 %}badge-green
-                {% elif a.score >= 50 %}badge-yellow
-                {% else %}badge-red{% endif %}">
-                {{ a.score }}%
-              </span>
-            </td>
-            <td class="muted-cell">{{ a.keyword_score or '—' }}%</td>
-            <td class="muted-cell">{{ a.skills_score or '—' }}%</td>
-            <td class="muted-cell">{{ a.created_at.strftime('%b %d, %Y') }}</td>
-            <td>
-              <div class="action-btns">
-                <a href="{{ url_for('result', uid=a.uid) }}" class="btn-icon" title="View">
-                  <i class="fas fa-eye"></i>
-                </a>
-                <button class="btn-icon btn-danger delete-btn" data-id="{{ a.id }}" title="Delete">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="empty-table">
-      <i class="fas fa-inbox fa-3x text-aqua"></i>
-      <h3>No analyses yet</h3>
-      <p>Start by uploading a resume on the home page.</p>
-      <a href="{{ url_for('index') }}" class="btn-primary">Upload Resume</a>
-    </div>
-    {% endif %}
-  </div>
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Score Distribution</h3>
+                        <p class="chart-subtitle">Breakdown of all resume scores</p>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="scoreDistChart"></canvas>
+                    </div>
+                </div>
 
-</section>
-{% endblock %}
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Recent Scores</h3>
+                        <p class="chart-subtitle">Last 10 analyses performance</p>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="recentScoresChart"></canvas>
+                    </div>
+                </div>
+            </div>
 
-{% block extra_scripts %}
-<script>
-  const RECENT_SCORES = {{ recent_scores | safe }};
-  const SCORE_DIST = {
-    high: {{ high_score }},
-    mid:  {{ mid_score }},
-    low:  {{ low_score }}
-  };
-</script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-{% endblock %}
+            <div class="table-card">
+                <div class="table-header">
+                    <div class="table-title-section">
+                        <h3 class="table-title">Recent Analyses</h3>
+                        <span class="table-count">{{ total }} total</span>
+                    </div>
+                    <div class="table-search">
+                        <input type="text" id="searchInput" placeholder="Search by filename or job title..." class="search-input">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    {% if analyses %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Resume</th>
+                                <th>Job Title</th>
+                                <th>Score</th>
+                                <th>Keywords</th>
+                                <th>Skills</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% for analysis in analyses %}
+                            <tr data-id="{{ analysis.id }}">
+                                <td>
+                                    <div class="filename-cell">
+                                        <span class="file-icon">📄</span>
+                                        <span class="filename">{{ analysis.filename }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="job-title">{{ analysis.job_title or '—' }}</span>
+                                </td>
+                                <td>
+                                    <div class="score-badge
+                                        {% if analysis.score >= 80 %}score-high
+                                        {% elif analysis.score >= 50 %}score-mid
+                                        {% else %}score-low{% endif %}">
+                                        {{ analysis.score }}%
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="metric-value">{{ analysis.keyword_score }}%</span>
+                                </td>
+                                <td>
+                                    <span class="metric-value">{{ analysis.skills_score }}%</span>
+                                </td>
+                                <td>
+                                    <span class="date-text">{{ analysis.created_at.strftime('%b %d, %Y') }}</span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="/result/{{ analysis.uid }}" class="action-btn view" title="View Details">👁️</a>
+                                        <button class="action-btn delete" onclick="deleteAnalysis({{ analysis.id }})" title="Delete">🗑️</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <h3 class="empty-title">No analyses yet</h3>
+                        <p class="empty-text">Upload your first resume to get started!</p>
+                        <a href="/" class="empty-cta">Analyze Resume</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text">
+                Built by <strong>Hassan Ahmed</strong> – AI Resume Analyzer
+            </p>
+            <p class="footer-tech">
+                Powered by Flask · Pure Python AI · Neon DB
+            </p>
+        </div>
+    </footer>
+
+    <script src="/static/js/particles.js"></script>
+    <script>
+        const chartData = {{ recent_scores | safe }};
+        const highScore = {{ high_score }};
+        const midScore = {{ mid_score }};
+        const lowScore = {{ low_score }};
+
+        document.querySelectorAll('.stat-value').forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-value'));
+            let current = 0;
+            const increment = target / 30;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    counter.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    counter.textContent = Math.floor(current);
+                }
+            }, 30);
+        });
+
+        const distCtx = document.getElementById('scoreDistChart').getContext('2d');
+        new Chart(distCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['High (80%+)', 'Good (50-79%)', 'Needs Work (<50%)'],
+                datasets: [{
+                    data: [highScore, midScore, lowScore],
+                    backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                    borderColor: '#0f172a',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#cbd5e1', padding: 20, font: { size: 12 } }
+                    }
+                }
+            }
+        });
+
+        const scoresCtx = document.getElementById('recentScoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: chartData.map(d => d.filename.substring(0, 15) + '...'),
+                datasets: [{
+                    label: 'Score',
+                    data: chartData.map(d => d.score),
+                    backgroundColor: chartData.map(d =>
+                        d.score >= 80 ? '#22c55e' :
+                        d.score >= 50 ? '#f59e0b' : '#ef4444'
+                    ),
+                    borderColor: '#0f172a',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: '#1e293b' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { display: false }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const search = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#tableBody tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        });
+
+        function deleteAnalysis(id) {
+            if (!confirm('Delete this analysis? This cannot be undone.')) return;
+            
+            fetch(`/api/delete/${id}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(-20px)';
+                        setTimeout(() => row.remove(), 300);
+                    }
+                })
+                .catch(err => alert('Delete failed: ' + err));
+        }
+    </script>
+</body>
+</html>
